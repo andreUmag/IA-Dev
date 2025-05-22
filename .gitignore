@@ -2,3 +2,5 @@ env/
 src/data/rt_reviews.csv
 src/data/train_data_clean.parquet
 src/data/test_data_clean.parquet
+src/data/frequent_words_fresh.csv
+src/data/frequent_words_rotten.csv

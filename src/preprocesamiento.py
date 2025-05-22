@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
 
+from collections import Counter
+
 nltk.download('stopwords')
 
 custom_stopwords = {'movie', 'film', 'one', 'character', 'story', 'make', 'even'}
@@ -96,6 +98,27 @@ def plot_wordclouds(df):
 
     plt.show()
 
+def export_frequent_words(df):
+    def get_word_counts(text):
+        words = re.findall(r'\b\w+\b', text.lower())
+        return Counter(words)
+
+    fresh_text = ' '.join(df[df['label'] == 1]['Review_clean'])
+    rotten_text = ' '.join(df[df['label'] == 0]['Review_clean'])
+
+    fresh_counts = get_word_counts(fresh_text)
+    rotten_counts = get_word_counts(rotten_text)
+
+    fresh_df = pd.DataFrame(fresh_counts.items(), columns=['Word', 'Count'])
+    fresh_df['Label'] = 'Fresh'
+    fresh_df = fresh_df.sort_values(by='Count', ascending=False)
+
+    rotten_df = pd.DataFrame(rotten_counts.items(), columns=['Word', 'Count'])
+    rotten_df['Label'] = 'Rotten'
+    rotten_df = rotten_df.sort_values(by='Count', ascending=False)
+
+    fresh_df.to_csv('src/data/frequent_words_fresh.csv', index=False)
+    rotten_df.to_csv('src/data/frequent_words_rotten.csv', index=False)
 
 if __name__ == "__main__":
     filepath = "src/data/rt_reviews.csv"
@@ -112,3 +135,5 @@ if __name__ == "__main__":
     plot_category_counts(df)
     plot_word_counts(df)
     plot_wordclouds(df)
+
+    export_frequent_words(df)

@@ -10,7 +10,9 @@ import seaborn as sns
 from wordcloud import WordCloud
 
 nltk.download('stopwords')
-stop_words = set(stopwords.words('english'))
+
+custom_stopwords = {'movie', 'film', 'one', 'character', 'story', 'make', 'even'}
+stop_words = set(stopwords.words('english')).union(custom_stopwords)
 
 
 def load_and_preprocess(filepath):
@@ -39,6 +41,7 @@ def vectorize_and_split(df, max_features=5000, test_size=0.2, random_state=42):
     X_train, X_test, y_train, y_test = train_test_split(X, y,
                                                         test_size=test_size,
                                                         random_state=random_state)
+
     train_df = pd.DataFrame(X_train.toarray(), columns=vectorizer.get_feature_names_out())
     train_df['label'] = y_train.values
     test_df = pd.DataFrame(X_test.toarray(), columns=vectorizer.get_feature_names_out())
@@ -47,15 +50,15 @@ def vectorize_and_split(df, max_features=5000, test_size=0.2, random_state=42):
     return train_df, test_df, vectorizer
 
 
-def save_csv(train_df, test_df, train_path, test_path):
-    train_df.to_csv(train_path, index=False)
-    test_df.to_csv(test_path, index=False)
+def save_parquet(train_df, test_df, train_path, test_path):
+    train_df.to_parquet(train_path, index=False)
+    test_df.to_parquet(test_path, index=False)
 
 
 def plot_category_counts(df):
-    plt.figure(figsize=(6,4))
+    plt.figure(figsize=(6, 4))
     sns.countplot(x='label', data=df)
-    plt.xticks(ticks=[0,1], labels=['Rotten', 'Fresh'])
+    plt.xticks(ticks=[0, 1], labels=['Rotten', 'Fresh'])
     plt.title('Número de reviews por categoría')
     plt.xlabel('Categoría')
     plt.ylabel('Cantidad')
@@ -64,7 +67,7 @@ def plot_category_counts(df):
 
 def plot_word_counts(df):
     df['word_count'] = df['Review_clean'].apply(lambda x: len(x.split()))
-    plt.figure(figsize=(6,4))
+    plt.figure(figsize=(6, 4))
     sns.barplot(x=['Rotten', 'Fresh'],
                 y=[df[df['label'] == 0]['word_count'].sum(),
                    df[df['label'] == 1]['word_count'].sum()])
@@ -80,13 +83,13 @@ def plot_wordclouds(df):
     wordcloud_fresh = WordCloud(width=600, height=400, background_color='white').generate(fresh_text)
     wordcloud_rotten = WordCloud(width=600, height=400, background_color='white').generate(rotten_text)
 
-    plt.figure(figsize=(12,5))
-    plt.subplot(1,2,1)
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
     plt.imshow(wordcloud_fresh, interpolation='bilinear')
     plt.title('WordCloud - Fresh')
     plt.axis('off')
 
-    plt.subplot(1,2,2)
+    plt.subplot(1, 2, 2)
     plt.imshow(wordcloud_rotten, interpolation='bilinear')
     plt.title('WordCloud - Rotten')
     plt.axis('off')
@@ -95,19 +98,17 @@ def plot_wordclouds(df):
 
 
 if __name__ == "__main__":
-    
-    
     filepath = "src/data/rt_reviews.csv"
-
     df = load_and_preprocess(filepath)
 
     train_df, test_df, vectorizer = vectorize_and_split(df)
 
-    train_path = "src/data/train_data_clean.csv"
-    test_path = "src/data/test_data_clean.csv"
-    save_csv(train_df, test_df, train_path, test_path)
+    # Guardado en formato Parquet (binario, compacto)
+    train_path = "src/data/train_data_clean.parquet"
+    test_path = "src/data/test_data_clean.parquet"
+    save_parquet(train_df, test_df, train_path, test_path)
 
-    #Graficas
+    # Gráficas
     plot_category_counts(df)
     plot_word_counts(df)
     plot_wordclouds(df)

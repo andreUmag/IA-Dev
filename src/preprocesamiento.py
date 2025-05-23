@@ -2,6 +2,7 @@ import pandas as pd
 import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 import nltk
 from nltk.corpus import stopwords
 
@@ -15,7 +16,6 @@ nltk.download('stopwords')
 
 custom_stopwords = {'movie', 'film', 'one', 'character', 'story', 'make', 'even'}
 stop_words = set(stopwords.words('english')).union(custom_stopwords)
-
 
 def load_and_preprocess(filepath):
     df = pd.read_csv(filepath, encoding='latin1')
@@ -34,8 +34,25 @@ def load_and_preprocess(filepath):
     df['Review_clean'] = df['Review'].apply(preprocess)
     return df
 
+def explore_data(df):
+    print("Primeras filas:\n", df.head())
+    print("\nDescripción:\n", df.describe(include='all'))
+    print("\nValores nulos:\n", df.isnull().sum())
 
-def vectorize_and_split(df, max_features=5000, test_size=0.2, random_state=42):
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df['Review_clean'].apply(lambda x: len(x.split())), bins=30)
+    plt.title('Distribución de longitud de reseñas')
+    plt.xlabel('Número de palabras')
+    plt.ylabel('Frecuencia')
+    plt.show()
+
+    corr = df[['label']].copy()
+    corr['word_count'] = df['Review_clean'].apply(lambda x: len(x.split()))
+    sns.heatmap(corr.corr(), annot=True, cmap='coolwarm')
+    plt.title('Correlación entre variables')
+    plt.show()
+
+def vectorize_and_split(df, max_features=2000, test_size=0.2, random_state=42):
     vectorizer = TfidfVectorizer(max_features=max_features)
     X = vectorizer.fit_transform(df['Review_clean'])
     y = df['label']
@@ -51,11 +68,16 @@ def vectorize_and_split(df, max_features=5000, test_size=0.2, random_state=42):
 
     return train_df, test_df, vectorizer
 
+def scale_features(train_df, test_df):
+    features = [col for col in train_df.columns if col != 'label']
+    scaler = StandardScaler()
+    train_df[features] = scaler.fit_transform(train_df[features])
+    test_df[features] = scaler.transform(test_df[features])
+    return train_df, test_df
 
 def save_parquet(train_df, test_df, train_path, test_path):
     train_df.to_parquet(train_path, index=False)
     test_df.to_parquet(test_path, index=False)
-
 
 def plot_category_counts(df):
     df['label_str'] = df['label'].map({0: 'Rotten', 1: 'Fresh'})
@@ -66,7 +88,6 @@ def plot_category_counts(df):
     plt.xlabel('Categoría')
     plt.ylabel('Cantidad')
     plt.show()
-
 
 def plot_word_counts(df):
     df['word_count'] = df['Review_clean'].apply(lambda x: len(x.split()))
@@ -80,8 +101,6 @@ def plot_word_counts(df):
     plt.title('Total de palabras por categoría')
     plt.ylabel('Cantidad de palabras')
     plt.show()
-
-
 
 def plot_wordclouds(df):
     fresh_text = ' '.join(df[df['label'] == 1]['Review_clean'])
@@ -169,19 +188,18 @@ if __name__ == "__main__":
     filepath = "src/data/rt_reviews.csv"
     df = load_and_preprocess(filepath)
 
-    train_df, test_df, vectorizer = vectorize_and_split(df)
+    explore_data(df)
 
-    # Guardado en formato Parquet (binario, compacto)
+    train_df, test_df, vectorizer = vectorize_and_split(df)
+    train_df, test_df = scale_features(train_df, test_df)
+
     train_path = "src/data/train_data_clean.parquet"
     test_path = "src/data/test_data_clean.parquet"
     save_parquet(train_df, test_df, train_path, test_path)
 
-    # Gráficas
     plot_category_counts(df)
     plot_word_counts(df)
     plot_wordclouds(df)
-
-    export_frequent_words(df)
 
     export_frequent_words(df)
     plot_unique_words_and_export_common(df)

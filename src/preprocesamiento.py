@@ -58,9 +58,10 @@ def save_parquet(train_df, test_df, train_path, test_path):
 
 
 def plot_category_counts(df):
+    df['label_str'] = df['label'].map({0: 'Rotten', 1: 'Fresh'})
+
     plt.figure(figsize=(6, 4))
-    sns.countplot(x='label', data=df)
-    plt.xticks(ticks=[0, 1], labels=['Rotten', 'Fresh'])
+    sns.countplot(data=df, x='label_str', hue='label_str', palette={'Rotten': '#DF776E', 'Fresh': '#28DEB8'}, legend=False)
     plt.title('Número de reviews por categoría')
     plt.xlabel('Categoría')
     plt.ylabel('Cantidad')
@@ -70,12 +71,16 @@ def plot_category_counts(df):
 def plot_word_counts(df):
     df['word_count'] = df['Review_clean'].apply(lambda x: len(x.split()))
     plt.figure(figsize=(6, 4))
-    sns.barplot(x=['Rotten', 'Fresh'],
-                y=[df[df['label'] == 0]['word_count'].sum(),
-                   df[df['label'] == 1]['word_count'].sum()])
+    sns.barplot(
+        x=['Rotten', 'Fresh'],
+        y=[df[df['label'] == 0]['word_count'].sum(),
+           df[df['label'] == 1]['word_count'].sum()],
+        palette=['#DF776E', '#28DEB8']
+    )
     plt.title('Total de palabras por categoría')
     plt.ylabel('Cantidad de palabras')
     plt.show()
+
 
 
 def plot_wordclouds(df):
@@ -120,6 +125,46 @@ def export_frequent_words(df):
     fresh_df.to_csv('src/data/frequent_words_fresh.csv', index=False)
     rotten_df.to_csv('src/data/frequent_words_rotten.csv', index=False)
 
+def plot_unique_words_and_export_common(df):
+    def get_word_counts(text):
+        words = re.findall(r'\b\w+\b', text.lower())
+        return Counter(words)
+
+    fresh_text = ' '.join(df[df['label'] == 1]['Review_clean'])
+    rotten_text = ' '.join(df[df['label'] == 0]['Review_clean'])
+
+    fresh_counts = get_word_counts(fresh_text)
+    rotten_counts = get_word_counts(rotten_text)
+
+    fresh_words = set(fresh_counts.keys())
+    rotten_words = set(rotten_counts.keys())
+
+    unique_fresh = fresh_words - rotten_words
+    unique_rotten = rotten_words - fresh_words
+
+    plt.figure(figsize=(6, 4))
+    sns.barplot(
+        x=['Fresh Only', 'Rotten Only'],
+        y=[len(unique_fresh), len(unique_rotten)],
+        palette=['#28DEB8', '#DF776E']
+    )
+    plt.title('Número de palabras únicas por categoría')
+    plt.ylabel('Cantidad de palabras únicas')
+    plt.show()
+
+    common_words = fresh_words & rotten_words
+    data = []
+    for word in common_words:
+        data.append({
+            'Word': word,
+            'Fresh Count': fresh_counts[word],
+            'Rotten Count': rotten_counts[word]
+        })
+
+    common_df = pd.DataFrame(data)
+    common_df = common_df.sort_values(by=['Fresh Count', 'Rotten Count'], ascending=False)
+    common_df.to_csv('src/data/common_words_counts.csv', index=False)
+
 if __name__ == "__main__":
     filepath = "src/data/rt_reviews.csv"
     df = load_and_preprocess(filepath)
@@ -137,3 +182,6 @@ if __name__ == "__main__":
     plot_wordclouds(df)
 
     export_frequent_words(df)
+
+    export_frequent_words(df)
+    plot_unique_words_and_export_common(df)
